@@ -65,6 +65,7 @@ export const fetchLeads = async () => {
         meetStatus: row.meeting_status ? row.meeting_status.charAt(0).toUpperCase() + row.meeting_status.slice(1) : 'Not Scheduled',
         meetingDate: row.meeting_datetime || '',
         meetingLink: row.meeting_link || '',
+        clientRequirements: row.client_requirements || '',
         createdAt: new Date(row.created_at).toLocaleDateString(),
         updatedAt: row.updated_at ? new Date(row.updated_at).toLocaleDateString() : 'N/A'
       });

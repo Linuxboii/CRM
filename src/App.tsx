@@ -169,7 +169,7 @@ export default function App() {
   const openNewModal = () => {
     setEditingId(null);
     setLeadForm({
-      name: '', email: '', number: '', location: '', pricing: '', status: 'Lead', sourceUserId: ''
+      name: '', email: '', number: '', location: '', pricing: '', status: 'Lead', sourceUserId: '', clientRequirements: '', meetStatus: 'Not Scheduled', meetingDate: '', meetingLink: ''
     });
     setIsLeadModalOpen(true);
   };
@@ -184,6 +184,10 @@ export default function App() {
       pricing: lead.pricing,
       status: lead.status,
       sourceUserId: lead.sourceUserId,
+      clientRequirements: lead.clientRequirements,
+      meetStatus: lead.meetStatus,
+      meetingDate: lead.meetingDate,
+      meetingLink: lead.meetingLink
     });
     setIsLeadModalOpen(true);
   };
@@ -213,27 +217,26 @@ export default function App() {
     
     const rawPricing = parseInt((leadForm.pricing || '0').toString().replace(/\D/g, ''));
     
+    const payload = {
+      full_name: leadForm.name,
+      email: leadForm.email,
+      phone: leadForm.number,
+      location: leadForm.location,
+      pricing_target: rawPricing,
+      status: leadForm.status?.toLowerCase() || 'lead',
+      assigned_to: leadForm.sourceUserId || null,
+      client_requirements: leadForm.clientRequirements || '',
+      meeting_status: leadForm.meetStatus || 'Not Scheduled',
+      meeting_datetime: leadForm.meetingDate || null,
+      meeting_link: leadForm.meetingLink || ''
+    };
+
     if (editingId) {
-      await updateLead(editingId, {
-        full_name: leadForm.name,
-        email: leadForm.email,
-        phone: leadForm.number,
-        location: leadForm.location,
-        pricing_target: rawPricing,
-        status: leadForm.status?.toLowerCase() || 'lead',
-        assigned_to: leadForm.sourceUserId || null
-      });
+      await updateLead(editingId, payload);
     } else {
-      await createLead({
-        full_name: leadForm.name,
-        email: leadForm.email,
-        phone: leadForm.number,
-        location: leadForm.location,
-        pricing_target: rawPricing,
-        status: leadForm.status?.toLowerCase() || 'lead',
-        assigned_to: leadForm.sourceUserId || null
-      });
+      await createLead(payload);
     }
+
     
     setIsLeadModalOpen(false);
     loadData();
@@ -387,13 +390,14 @@ export default function App() {
                     <th>Lead Source</th>
                     <th>Pricing</th>
                     <th>Status</th>
+                    <th>Next Meeting</th>
                     <th style={{textAlign: 'right'}}>Options</th>
                   </tr>
                 </thead>
                 <tbody>
                   {!isLoading && filteredLeads.length === 0 ? (
                     <tr>
-                      <td colSpan={6} style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-muted)' }}>
+                      <td colSpan={7} style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-muted)' }}>
                         We couldn't find any leads matching your query.
                       </td>
                     </tr>
@@ -429,13 +433,26 @@ export default function App() {
                         <td>
                           <span className={`status-badge ${getStatusClass(lead.status)}`}>{lead.status}</span>
                         </td>
+                        <td style={{ padding: '1rem' }}>
+                          {lead.meetStatus !== 'Not Scheduled' && lead.meetingDate ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                              <span style={{ fontSize: '0.8125rem', fontWeight: '500', color: 'var(--primary-color)' }}>
+                                {new Date(lead.meetingDate).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                              </span>
+                              {lead.meetingLink && (
+                                <a href={lead.meetingLink} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.75rem', color: '#3b82f6', textDecoration: 'none' }}>
+                                  Join Link
+                                </a>
+                              )}
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>None</span>
+                          )}
+                        </td>
                         <td>
                           <div className="action-buttons">
                             <button className="icon-button" onClick={() => openEditModal(lead)} title="Edit Configuration">
                               <Edit2 size={16} />
-                            </button>
-                            <button className="icon-button" onClick={() => openMeetingModal(lead.id)} title="Add Standalone Meeting">
-                              <CalendarPlus size={16} />
                             </button>
                             <button className="icon-button" onClick={() => openDeleteModal(lead.id)} style={{color: '#ef4444'}} title="Scrap Lead">
                               <Trash2 size={16} />
@@ -611,6 +628,28 @@ export default function App() {
                     <option value="Qualified">Qualified</option>
                     <option value="Closed">Closed</option>
                   </select>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Client Requirements</label>
+                <textarea 
+                  rows={3} 
+                  value={leadForm.clientRequirements || ''} 
+                  onChange={(e) => setLeadForm({...leadForm, clientRequirements: e.target.value})} 
+                  placeholder="Summarize the client's needs, property requirements, features, etc." 
+                  style={{ width: '100%', padding: '0.625rem', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-color)', color: 'var(--text-primary)', resize: 'vertical' }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.5fr)', gap: '1rem', padding: '1rem', backgroundColor: 'var(--bg-color)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                <div className="form-group">
+                  <label>Meeting Date & Time (Optional)</label>
+                  <input type="datetime-local" value={leadForm.meetingDate ? leadForm.meetingDate.slice(0, 16) : ''} onChange={(e) => setLeadForm({...leadForm, meetingDate: e.target.value, meetStatus: e.target.value ? 'Scheduled' : 'Not Scheduled'})} />
+                </div>
+                <div className="form-group">
+                  <label>Google Meet / Join Link (Optional)</label>
+                  <input type="text" value={leadForm.meetingLink || ''} onChange={(e) => setLeadForm({...leadForm, meetingLink: e.target.value})} placeholder="https://meet.google.com/... or 'Phone'" />
                 </div>
               </div>
 
