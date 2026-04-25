@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  Building2, LayoutDashboard, Users, Briefcase, Settings, Search, Bell, HelpCircle,
-  MoreVertical, TrendingUp, TrendingDown, Phone, Mail, MapPin, Calendar, 
-  CheckCircle2, Clock, Plus, X, Edit2, Trash2, CalendarPlus, AlertTriangle, Trophy, LogOut, RefreshCw
+  Building2, LayoutDashboard, Users, Briefcase, Search, Bell, 
+  MoreVertical, TrendingUp, Phone, Calendar, 
+  CheckCircle2, Plus, X, Edit2, Trash2, CalendarPlus, AlertTriangle, Trophy, LogOut, RefreshCw
 } from 'lucide-react';
 import { fetchLeads, createLead, updateLead, deleteLead, addMeeting, fetchUsers, SystemUser, loginUser, registerUser, fetchTopProducer, approveUser, deleteUser } from './api';
 import './index.css';
