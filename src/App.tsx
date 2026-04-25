@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { 
   Building2, LayoutDashboard, Users, Briefcase, Search, Bell, 
   MoreVertical, TrendingUp, Phone, Calendar, 
-  CheckCircle2, Plus, X, Edit2, Trash2, CalendarPlus, AlertTriangle, Trophy, LogOut, RefreshCw
+  CheckCircle2, Plus, X, Edit2, Trash2, AlertTriangle, Trophy, LogOut, RefreshCw
 } from 'lucide-react';
-import { fetchLeads, createLead, updateLead, deleteLead, addMeeting, fetchUsers, SystemUser, loginUser, registerUser, fetchTopProducer, approveUser, deleteUser } from './api';
+import { fetchLeads, createLead, updateLead, deleteLead, fetchUsers, SystemUser, loginUser, registerUser, fetchTopProducer, approveUser, deleteUser } from './api';
 import './index.css';
 
 type LeadStatus = 'Lead' | 'Qualified' | 'Closed';
@@ -21,6 +21,7 @@ interface Lead {
   meetingLink: string;
   sourceUserId: string;
   sourceUserName: string;
+  clientRequirements?: string;
   createdAt: string;
   updatedAt: string;
   status: LeadStatus;
@@ -97,7 +98,6 @@ export default function App() {
   
   // Modals State
   const [isLeadModalOpen, setIsLeadModalOpen] = useState(false);
-  const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [leadToDelete, setLeadToDelete] = useState<string | null>(null);
@@ -106,8 +106,6 @@ export default function App() {
   const [leadForm, setLeadForm] = useState<Partial<Lead>>({
     name: '', email: '', number: '', location: '', pricing: '', status: 'Lead', sourceUserId: ''
   });
-  
-  const [meetingForm, setMeetingForm] = useState({ date: '', link: '' });
 
   useEffect(() => {
     const storedUser = localStorage.getItem('crm_user');
@@ -192,12 +190,6 @@ export default function App() {
     setIsLeadModalOpen(true);
   };
 
-  const openMeetingModal = (id: string) => {
-    setEditingId(id);
-    setMeetingForm({ date: '', link: '' });
-    setIsMeetingModalOpen(true);
-  }
-
   const openDeleteModal = (id: string) => {
     setLeadToDelete(id);
     setIsDeleteModalOpen(true);
@@ -240,20 +232,6 @@ export default function App() {
     
     setIsLeadModalOpen(false);
     loadData();
-  };
-
-  const handleMeetingSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (editingId && meetingForm.date) {
-      await addMeeting({
-        lead_id: editingId,
-        meeting_status: 'scheduled',
-        meeting_datetime: meetingForm.date,
-        meeting_link: meetingForm.link || undefined
-      });
-      setIsMeetingModalOpen(false);
-      loadData();
-    }
   };
 
   const getStatusClass = (status: string) => {
@@ -662,33 +640,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Standalone Meeting Modal */}
-      {isMeetingModalOpen && (
-        <div className="modal-overlay" onClick={() => setIsMeetingModalOpen(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '400px' }}>
-            <div className="modal-header">
-              <h2>Schedule Check-in</h2>
-              <button className="icon-button" type="button" onClick={() => setIsMeetingModalOpen(false)}><X size={20} /></button>
-            </div>
-            
-            <form onSubmit={handleMeetingSubmit}>
-              <div className="form-group">
-                <label>Meeting Date & Time</label>
-                <input type="datetime-local" value={meetingForm.date} onChange={(e) => setMeetingForm({...meetingForm, date: e.target.value})} required/>
-              </div>
-              <div className="form-group">
-                <label>Meeting Link</label>
-                <input type="url" value={meetingForm.link} onChange={(e) => setMeetingForm({...meetingForm, link: e.target.value})}/>
-              </div>
 
-              <div className="modal-actions">
-                <button type="button" className="btn-secondary" onClick={() => setIsMeetingModalOpen(false)}>Cancel</button>
-                <button type="submit" className="btn-primary">Set Objective</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Custom Delete Confirmation Modal */}
       {isDeleteModalOpen && (
