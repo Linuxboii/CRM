@@ -1,5 +1,4 @@
-import React from 'react';
-import { SystemUser, approveUser, deleteUser } from '../api';
+import { SystemUser } from '../api';
 
 interface TeamViewProps {
   users: SystemUser[];

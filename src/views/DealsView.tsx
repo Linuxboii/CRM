@@ -1,4 +1,3 @@
-import React from 'react';
 import { Lead, LeadStatus } from '../types';
 
 interface DealsViewProps {
@@ -7,10 +6,11 @@ interface DealsViewProps {
 }
 
 const STAGES: { id: LeadStatus; label: string; color: string }[] = [
-  { id: 'Qualified', label: 'Qualified', color: 'border-blue-500' },
-  { id: 'Proposal', label: 'Proposal', color: 'border-amber-500' },
-  { id: 'Negotiation', label: 'Negotiation', color: 'border-purple-500' },
-  { id: 'Closed', label: 'Closed Won', color: 'border-emerald-500' },
+  { id: 'Lead', label: 'Lead', color: 'border-slate-500' },
+  { id: 'Contacted', label: 'Contacted', color: 'border-blue-500' },
+  { id: 'Qualified', label: 'Qualified', color: 'border-indigo-500' },
+  { id: 'Closed Won', label: 'Closed Won', color: 'border-emerald-500' },
+  { id: 'Closed Lost', label: 'Closed Lost', color: 'border-red-500' },
 ];
 
 export default function DealsView({ leads, onUpdateStatus }: DealsViewProps) {

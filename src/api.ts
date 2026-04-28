@@ -45,44 +45,39 @@ export const fetchUsers = async () => {
 
 export const fetchLeads = async () => {
   const res = await fetch(`${API_URL}/leads`, { headers: getHeaders() });
-  if (!res.ok) throw new Error("Unauthorized");
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error("Fetch leads error:", res.status, errorText);
+    throw new Error(`Failed to fetch leads: ${errorText}`);
+  }
   const rawData = await res.json();
   
-  const groupedLeads = new Map<string, any>();
+  // Map database status values to UI status values
+  const statusMap: { [key: string]: string } = {
+    'lead': 'Lead',
+    'contacted': 'Contacted',
+    'qualified': 'Qualified',
+    'closed': 'Closed Won',
+    'lost': 'Closed Lost'
+  };
   
-  rawData.forEach((row: any) => {
-    if (!groupedLeads.has(row.id)) {
-      groupedLeads.set(row.id, {
-        id: row.id,
-        name: row.full_name,
-        email: row.email,
-        number: row.phone,
-        location: row.location,
-        pricing: row.pricing_target ? `₹${row.pricing_target}` : '₹0', 
-        status: row.status ? row.status.charAt(0).toUpperCase() + row.status.slice(1) : 'Lead', 
-        sourceUserId: row.assigned_to || '',
-        sourceUserName: row.assigned_to_name || 'Unassigned',
-        meetStatus: row.meeting_status ? row.meeting_status.charAt(0).toUpperCase() + row.meeting_status.slice(1) : 'Not Scheduled',
-        meetingDate: row.meeting_datetime || '',
-        meetingLink: row.meeting_link || '',
-        clientRequirements: row.client_requirements || '',
-        createdAt: new Date(row.created_at).toLocaleDateString(),
-        updatedAt: row.updated_at ? new Date(row.updated_at).toLocaleDateString() : 'N/A'
-      });
-    } else if (row.meeting_datetime) {
-      const existing = groupedLeads.get(row.id);
-      if (!existing.meetingDate || new Date(row.meeting_datetime) > new Date(existing.meetingDate)) {
-        groupedLeads.set(row.id, {
-          ...existing,
-          meetStatus: row.meeting_status ? row.meeting_status.charAt(0).toUpperCase() + row.meeting_status.slice(1) : 'Scheduled',
-          meetingDate: row.meeting_datetime,
-          meetingLink: row.meeting_link
-        });
-      }
-    }
-  });
-
-  return Array.from(groupedLeads.values());
+  return rawData.map((row: any) => ({
+    id: row.id,
+    name: row.full_name,
+    email: row.email,
+    number: row.phone,
+    location: row.location,
+    pricing: row.pricing_target ? `₹${row.pricing_target}` : '₹0', 
+    status: statusMap[row.status] || 'Lead',
+    sourceUserId: row.assigned_to || '',
+    sourceUserName: row.assigned_to_name || 'Unassigned',
+    meetStatus: row.gmeet_link ? 'Scheduled' : 'Not Scheduled',
+    meetingDate: row.meeting_datetime ? new Date(row.meeting_datetime).toLocaleString() : '',
+    meetingLink: row.gmeet_link || '',
+    clientRequirements: row.client_requirements || '',
+    createdAt: new Date(row.created_at).toLocaleDateString(),
+    updatedAt: row.updated_at ? new Date(row.updated_at).toLocaleDateString() : 'N/A'
+  }));
 };
 
 export const createLead = async (data: any) => {
@@ -91,6 +86,11 @@ export const createLead = async (data: any) => {
     headers: getHeaders(),
     body: JSON.stringify(data),
   });
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error("Create lead error:", errorText);
+    throw new Error(`Failed to create lead: ${errorText}`);
+  }
   return res.json();
 };
 
@@ -100,6 +100,11 @@ export const updateLead = async (id: string, data: any) => {
     headers: getHeaders(),
     body: JSON.stringify(data),
   });
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error("Update lead error:", errorText);
+    throw new Error(`Failed to update lead: ${errorText}`);
+  }
   return res.json();
 };
 
@@ -158,7 +163,7 @@ export const scheduleMeetingWebhook = async (data: {
     meetingDate: data.meetingDate,
     ...(data.clientRequirements ? { clientRequirements: data.clientRequirements } : {}),
   });
-  const res = await fetch(`https://n8n-bak.avlokai.com/webhook-test/meet-link?${params.toString()}`);
+  const res = await fetch(`https://n8n-bak.avlokai.com/webhook/meet-link?${params.toString()}`);
   if (!res.ok) throw new Error("Failed to schedule meeting via webhook");
   return res.json();
 };

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
-import { fetchLeads, createLead, updateLead, deleteLead, fetchUsers, SystemUser, fetchTopProducer, scheduleMeetingWebhook, approveUser, deleteUser } from './api';
+import { fetchLeads, createLead, updateLead, deleteLead, fetchUsers, SystemUser, scheduleMeetingWebhook } from './api';
 import { Lead, LeadStatus } from './types';
 import AuthPage from './components/AuthPage';
 import Sidebar from './components/Sidebar';
@@ -51,7 +51,7 @@ export default function App() {
       setLeads(results[0]);
       if (isAdmin) setUsers(results[1]);
     } catch (e: any) {
-      console.error("Networking error:", e);
+      console.error("Data loading error:", e);
       if (e.message === 'Unauthorized') handleLogout();
     } finally {
       setIsLoading(false);
@@ -133,31 +133,56 @@ export default function App() {
     e.preventDefault();
     setIsSubmitting(true);
     
-    const rawPricing = parseInt((leadForm.pricing || '0').toString().replace(/\D/g, ''));
-    
-    const payload = {
-      full_name: leadForm.name,
-      email: leadForm.email,
-      phone: leadForm.number,
-      location: leadForm.location,
-      pricing_target: rawPricing,
-      status: leadForm.status?.toLowerCase() || 'lead',
-      assigned_to: leadForm.sourceUserId || null,
-      client_requirements: leadForm.clientRequirements || '',
-      meeting_status: leadForm.meetingDate ? 'Scheduled' : (leadForm.meetStatus || 'Not Scheduled'),
-      meeting_datetime: leadForm.meetingDate || null,
-      meeting_link: leadForm.meetingLink || ''
-    };
+    try {
+      const rawPricing = parseInt((leadForm.pricing || '0').toString().replace(/\D/g, ''));
+      
+      // Convert datetime-local format to ISO string if meeting date exists
+      let meetingDatetime: string | null = null;
+      if (leadForm.meetingDate) {
+        // If it's already in ISO format, keep it; otherwise convert from datetime-local
+        if (leadForm.meetingDate.includes('T')) {
+          meetingDatetime = new Date(leadForm.meetingDate).toISOString();
+        } else {
+          meetingDatetime = leadForm.meetingDate;
+        }
+      }
+      
+      // Map UI status to database status values
+      const statusMap: { [key: string]: string } = {
+        'Lead': 'lead',
+        'Contacted': 'contacted',
+        'Qualified': 'qualified',
+        'Closed Won': 'closed',
+        'Closed Lost': 'lost'
+      };
+      
+      const payload = {
+        full_name: leadForm.name,
+        email: leadForm.email,
+        phone: leadForm.number,
+        location: leadForm.location,
+        pricing_target: rawPricing,
+        status: statusMap[leadForm.status] || 'lead',
+        assigned_to: leadForm.sourceUserId || null,
+        client_requirements: leadForm.clientRequirements || '',
+        meeting_link: leadForm.meetingLink || null,
+        meeting_datetime: meetingDatetime
+      };
 
-    if (editingId) {
-      await updateLead(editingId, payload);
-    } else {
-      await createLead(payload);
+      if (editingId) {
+        await updateLead(editingId, payload);
+      } else {
+        await createLead(payload);
+      }
+
+      setIsSubmitting(false);
+      setIsLeadModalOpen(false);
+      await loadData();
+    } catch (error: any) {
+      console.error('Error submitting lead:', error);
+      alert(`Error: ${error.message}`);
+      setIsSubmitting(false);
     }
-
-    setIsSubmitting(false);
-    setIsLeadModalOpen(false);
-    loadData();
   };
 
   const exportToExcel = () => {
@@ -241,10 +266,10 @@ export default function App() {
                     <label className="block text-sm font-medium mb-1">Status</label>
                     <select value={leadForm.status} onChange={e => setLeadForm({...leadForm, status: e.target.value as LeadStatus})} className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:border-indigo-500">
                       <option value="Lead">Lead</option>
+                      <option value="Contacted">Contacted</option>
                       <option value="Qualified">Qualified</option>
-                      <option value="Proposal">Proposal</option>
-                      <option value="Negotiation">Negotiation</option>
-                      <option value="Closed">Closed Won</option>
+                      <option value="Closed Won">Closed Won</option>
+                      <option value="Closed Lost">Closed Lost</option>
                     </select>
                   </div>
                   
@@ -270,7 +295,12 @@ export default function App() {
                      <div className="grid grid-cols-2 gap-4">
                        <div>
                          <label className="block text-xs font-medium text-slate-500 mb-1">Meeting Date & Time</label>
-                         <input type="datetime-local" value={leadForm.meetingDate ? new Date(leadForm.meetingDate).toISOString().slice(0, 16) : ''} onChange={e => setLeadForm({...leadForm, meetingDate: e.target.value})} className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:border-indigo-500 text-sm" />
+                         <input 
+                           type="datetime-local" 
+                           value={leadForm.meetingDate ? leadForm.meetingDate.slice(0, 16) : ''} 
+                           onChange={e => setLeadForm({...leadForm, meetingDate: e.target.value})} 
+                           className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:border-indigo-500 text-sm" 
+                         />
                        </div>
                        <div className="flex items-end">
                          <button type="button" onClick={handleGetMeetLink} disabled={isFetchingMeetLink || !leadForm.meetingDate} className="w-full px-4 py-2 bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 rounded-lg text-sm font-medium hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-colors disabled:opacity-50">
@@ -278,8 +308,8 @@ export default function App() {
                          </button>
                        </div>
                        <div className="col-span-2">
-                         <label className="block text-xs font-medium text-slate-500 mb-1">Meeting Link</label>
-                         <input type="url" value={leadForm.meetingLink || ''} onChange={e => setLeadForm({...leadForm, meetingLink: e.target.value, meetStatus: e.target.value ? 'Scheduled' : 'Not Scheduled'})} className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:border-indigo-500 text-sm" placeholder="https://meet.google.com/..." />
+                         <label className="block text-xs font-medium text-slate-500 mb-1">Google Meet Link</label>
+                         <input type="url" value={leadForm.meetingLink || ''} onChange={e => setLeadForm({...leadForm, meetingLink: e.target.value})} className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none focus:border-indigo-500 text-sm" placeholder="https://meet.google.com/..." />
                        </div>
                      </div>
                   </div>
