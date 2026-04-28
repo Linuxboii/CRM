@@ -143,3 +143,22 @@ export const deleteUser = async (id: string) => {
   if (!res.ok) throw new Error("Failed to delete user");
   return res.json();
 };
+
+export const scheduleMeetingWebhook = async (data: {
+  clientName: string;
+  clientEmail: string;
+  clientPhone: string;
+  meetingDate: string;
+  clientRequirements?: string;
+}) => {
+  const params = new URLSearchParams({
+    clientName: data.clientName,
+    clientEmail: data.clientEmail,
+    clientPhone: data.clientPhone,
+    meetingDate: data.meetingDate,
+    ...(data.clientRequirements ? { clientRequirements: data.clientRequirements } : {}),
+  });
+  const res = await fetch(`https://n8n-bak.avlokai.com/webhook-test/meet-link?${params.toString()}`);
+  if (!res.ok) throw new Error("Failed to schedule meeting via webhook");
+  return res.json();
+};
