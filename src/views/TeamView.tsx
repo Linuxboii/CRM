@@ -1,4 +1,4 @@
-import { SystemUser } from '../api';
+import { approveUser, deleteUser, SystemUser } from '../api';
 
 interface TeamViewProps {
   users: SystemUser[];

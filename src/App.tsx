@@ -148,13 +148,14 @@ export default function App() {
       }
       
       // Map UI status to database status values
-      const statusMap: { [key: string]: string } = {
+      const statusMap: Record<LeadStatus, string> = {
         'Lead': 'lead',
         'Contacted': 'contacted',
         'Qualified': 'qualified',
         'Closed Won': 'closed',
         'Closed Lost': 'lost'
       };
+      const selectedStatus = leadForm.status || 'Lead';
       
       const payload = {
         full_name: leadForm.name,
@@ -162,7 +163,7 @@ export default function App() {
         phone: leadForm.number,
         location: leadForm.location,
         pricing_target: rawPricing,
-        status: statusMap[leadForm.status] || 'lead',
+        status: statusMap[selectedStatus],
         assigned_to: leadForm.sourceUserId || null,
         client_requirements: leadForm.clientRequirements || '',
         meeting_link: leadForm.meetingLink || null,
@@ -211,6 +212,14 @@ export default function App() {
   };
 
   if (!currentUser) return <AuthPage onLogin={handleLogin} />;
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-50 dark:bg-slate-900 font-body-md text-slate-500 dark:text-slate-300">
+        Loading CRM data...
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-900 overflow-hidden font-body-md text-slate-900 dark:text-white">
