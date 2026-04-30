@@ -9,6 +9,7 @@ export interface Lead {
   pricing: string;
   meetStatus: string;
   meetingDate: string;
+  meetingDateIso: string;
   meetingLink: string;
   sourceUserId: string;
   sourceUserName: string;

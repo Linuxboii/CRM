@@ -78,6 +78,7 @@ export const fetchLeads = async () => {
       sourceUserName: row.assigned_to_name || 'Unassigned',
       meetStatus: meetingLink ? 'Scheduled' : 'Not Scheduled',
       meetingDate: row.meeting_datetime ? new Date(row.meeting_datetime).toLocaleString() : '',
+      meetingDateIso: row.meeting_datetime || '',
       meetingLink,
       clientRequirements: row.client_requirements || '',
       createdAt: new Date(row.created_at).toLocaleDateString(),

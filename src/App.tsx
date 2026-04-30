@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import * as XLSX from 'xlsx';
-import { fetchLeads, createLead, updateLead, deleteLead, fetchUsers, SystemUser, scheduleMeetingWebhook } from './api';
+import { fetchLeads, fetchTopProducer, createLead, updateLead, deleteLead, fetchUsers, SystemUser, scheduleMeetingWebhook } from './api';
 import { Lead, LeadStatus } from './types';
 import AuthPage from './components/AuthPage';
 import Sidebar from './components/Sidebar';
@@ -17,6 +17,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [leads, setLeads] = useState<Lead[]>([]);
   const [users, setUsers] = useState<SystemUser[]>([]);
+  const [topProducer, setTopProducer] = useState<{ name: string; count: number } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Modals State
@@ -59,12 +60,13 @@ export default function App() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const tasks: any[] = [fetchLeads()];
+      const tasks: any[] = [fetchLeads(), fetchTopProducer()];
       if (isAdmin) tasks.push(fetchUsers());
       
       const results = await Promise.all(tasks);
       setLeads(results[0]);
-      if (isAdmin) setUsers(results[1]);
+      setTopProducer(results[1]);
+      if (isAdmin) setUsers(results[2]);
     } catch (e: any) {
       console.error("Data loading error:", e);
       if (e.message === 'Unauthorized') handleLogout();
@@ -90,6 +92,7 @@ export default function App() {
     localStorage.removeItem('crm_token');
     setCurrentUser(null);
     setLeads([]);
+    setTopProducer(null);
   };
 
   const openNewModal = () => {
@@ -244,7 +247,7 @@ export default function App() {
         <Topbar userName={currentUser.full_name} userRole={currentUser.role} onLogout={handleLogout} />
         
         <main className="flex-1 overflow-auto">
-          {activeTab === 'dashboard' && <DashboardView leads={leads} isAdmin={isAdmin} onExport={exportToExcel} onNewDeal={openNewModal} onRefresh={loadData} />}
+          {activeTab === 'dashboard' && <DashboardView leads={leads} isAdmin={isAdmin} topProducer={topProducer} onExport={exportToExcel} onNewDeal={openNewModal} onRefresh={loadData} />}
           {activeTab === 'deals' && <DealsView leads={leads} onUpdateStatus={handleUpdateStatus} onRefresh={loadData} />}
           {activeTab === 'contacts' && <ContactsView leads={leads} onEditLead={openEditModal} onDeleteLead={handleDeleteLead} onRefresh={loadData} />}
           {activeTab === 'calendar' && <CalendarView leads={leads} onRefresh={loadData} />}

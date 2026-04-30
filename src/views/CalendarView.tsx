@@ -7,8 +7,20 @@ interface CalendarViewProps {
 
 export default function CalendarView({ leads, onRefresh }: CalendarViewProps) {
   const upcomingMeetings = leads
-    .filter(lead => lead.meetStatus === 'Scheduled' && lead.meetingDate)
-    .sort((a, b) => new Date(a.meetingDate).getTime() - new Date(b.meetingDate).getTime());
+    .filter(lead => {
+      const meetingDate = new Date(lead.meetingDateIso || lead.meetingDate);
+
+      return (
+        Boolean(lead.meetingDateIso || lead.meetingDate) &&
+        !Number.isNaN(meetingDate.getTime()) &&
+        meetingDate >= new Date()
+      );
+    })
+    .sort((a, b) => {
+      const dateA = new Date(a.meetingDateIso || a.meetingDate).getTime();
+      const dateB = new Date(b.meetingDateIso || b.meetingDate).getTime();
+      return dateA - dateB;
+    });
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
@@ -32,15 +44,20 @@ export default function CalendarView({ leads, onRefresh }: CalendarViewProps) {
           {upcomingMeetings.length === 0 ? (
             <p className="text-sm text-slate-500">No upcoming meetings scheduled.</p>
           ) : (
-            upcomingMeetings.map(lead => (
+            upcomingMeetings.map(lead => {
+              const meetingDate = new Date(lead.meetingDateIso || lead.meetingDate);
+
+              return (
               <div key={lead.id} className="flex gap-4 p-4 border border-slate-100 dark:border-slate-700 rounded-lg hover:border-secondary transition-colors">
                 <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg flex flex-col items-center justify-center shrink-0">
-                  <span className="text-[10px] font-bold uppercase">{new Date(lead.meetingDate).toLocaleString('default', { month: 'short' })}</span>
-                  <span className="text-lg font-bold leading-none">{new Date(lead.meetingDate).getDate()}</span>
+                  <span className="text-[10px] font-bold uppercase">{meetingDate.toLocaleString('default', { month: 'short' })}</span>
+                  <span className="text-lg font-bold leading-none">{meetingDate.getDate()}</span>
                 </div>
                 <div className="flex-1">
                   <h4 className="font-bold text-slate-900 dark:text-white">{lead.name}</h4>
-                  <p className="text-xs text-slate-500 mb-2">{new Date(lead.meetingDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} | Video Call</p>
+                  <p className="text-xs text-slate-500 mb-2">
+                    {meetingDate.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })} at {meetingDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} | Video Call
+                  </p>
                   {lead.meetingLink && (
                     <a href={lead.meetingLink} target="_blank" rel="noreferrer" className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2 py-1 rounded hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
                       Join Link
@@ -48,7 +65,8 @@ export default function CalendarView({ leads, onRefresh }: CalendarViewProps) {
                   )}
                 </div>
               </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

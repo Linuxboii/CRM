@@ -4,12 +4,13 @@ import { MONTHLY_GOAL_INR, formatInr, parseCurrencyValue } from '../utils/curren
 interface DashboardViewProps {
   leads: Lead[];
   isAdmin: boolean;
+  topProducer: { name: string; count: number } | null;
   onExport: () => void;
   onNewDeal: () => void;
   onRefresh: () => void;
 }
 
-export default function DashboardView({ leads, isAdmin, onExport, onNewDeal, onRefresh }: DashboardViewProps) {
+export default function DashboardView({ leads, isAdmin, topProducer, onExport, onNewDeal, onRefresh }: DashboardViewProps) {
   const getVisibleValue = (value: number) => isAdmin ? value : value * 0.2;
   const qualifiedPipelineLeads = leads.filter(lead => lead.status !== 'Lead');
   const pipelineTotal = qualifiedPipelineLeads.reduce((acc, lead) => acc + parseCurrencyValue(lead.pricing), 0);
@@ -53,6 +54,119 @@ export default function DashboardView({ leads, isAdmin, onExport, onNewDeal, onR
   const stageCount = (status: string) => leads.filter(l => l.status === status).length;
   const totalLeads = leads.length || 1;
   const getWidth = (status: string) => `${Math.max(5, (stageCount(status) / totalLeads) * 100)}%`;
+  const statusColors: { [key: string]: string } = {
+    'Lead': 'bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300',
+    'Contacted': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+    'Qualified': 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300',
+    'Closed Won': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
+    'Closed Lost': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
+  };
+
+  if (!isAdmin) {
+    return (
+      <div className="p-8 max-w-7xl mx-auto">
+        <div className="flex justify-between items-end mb-8">
+          <div>
+            <h2 className="font-headline-md text-headline-md text-slate-900 dark:text-white">Sales Dashboard</h2>
+            <p className="font-body-md text-body-md text-slate-500">Your clients, monthly goal, and pipeline cut.</p>
+          </div>
+          <button onClick={onRefresh} className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-2">
+            <span className="material-symbols-outlined text-sm">refresh</span> Refresh
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 sc-shadow">
+            <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg w-fit mb-4">
+              <span className="material-symbols-outlined">payments</span>
+            </div>
+            <p className="text-slate-500 dark:text-slate-400 font-label-md text-label-md uppercase mb-1">Pipeline Valuation</p>
+            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{calculatePipelineValue()}</h3>
+            <p className="text-xs text-slate-500 mt-2">Shows your 20% revenue cut.</p>
+          </div>
+
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 sc-shadow">
+            <div className="p-2 bg-rose-50 text-rose-600 rounded-lg w-fit mb-4">
+              <span className="material-symbols-outlined">track_changes</span>
+            </div>
+            <p className="text-slate-500 dark:text-slate-400 font-label-md text-label-md uppercase mb-1">Monthly Goal</p>
+            <h3 className="text-2xl font-bold text-slate-900 dark:text-white">{formatInr(MONTHLY_GOAL_INR)}</h3>
+            <div className="mt-4">
+              <div className="flex justify-between text-xs text-slate-500 mb-1.5">
+                <span>Current progress</span>
+                <span>{goalProgress}%</span>
+              </div>
+              <div className="h-2.5 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                <div className="h-full bg-secondary transition-all duration-500" style={{ width: `${goalProgress}%` }}></div>
+              </div>
+            </div>
+            <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                  <span className="material-symbols-outlined text-[18px]">workspace_premium</span>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase text-slate-400">Top Performer</p>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">{topProducer?.name || 'None'}</p>
+                  <p className="text-xs text-slate-500">{topProducer?.count || 0} active client{topProducer?.count === 1 ? '' : 's'}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 sc-shadow">
+          <h4 className="font-headline-sm text-headline-sm text-slate-900 dark:text-white mb-6">Clients List</h4>
+
+          {leads.length === 0 ? (
+            <div className="text-center py-8 text-slate-500">
+              <p>No clients assigned yet.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-700">
+                    <th className="text-left text-xs font-bold text-slate-600 dark:text-slate-400 uppercase px-2 py-3">Client</th>
+                    <th className="text-left text-xs font-bold text-slate-600 dark:text-slate-400 uppercase px-2 py-3">Location</th>
+                    <th className="text-left text-xs font-bold text-slate-600 dark:text-slate-400 uppercase px-2 py-3">Your Cut</th>
+                    <th className="text-left text-xs font-bold text-slate-600 dark:text-slate-400 uppercase px-2 py-3">Status</th>
+                    <th className="text-left text-xs font-bold text-slate-600 dark:text-slate-400 uppercase px-2 py-3">Meeting</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {leads.map((lead) => (
+                    <tr key={lead.id} className="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                      <td className="px-2 py-3">
+                        <div className="text-sm font-medium text-slate-900 dark:text-white">{lead.name}</div>
+                        <div className="text-xs text-slate-500">{lead.email}</div>
+                      </td>
+                      <td className="px-2 py-3 text-sm text-slate-600 dark:text-slate-400">{lead.location || 'N/A'}</td>
+                      <td className="px-2 py-3 text-sm font-medium text-slate-900 dark:text-white">{formatInr(parseCurrencyValue(lead.pricing) * 0.2)}</td>
+                      <td className="px-2 py-3 text-sm">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusColors[lead.status] || 'bg-slate-100 text-slate-800'}`}>
+                          {lead.status}
+                        </span>
+                      </td>
+                      <td className="px-2 py-3 text-sm">
+                        {lead.meetingLink ? (
+                          <a href={lead.meetingLink} target="_blank" rel="noopener noreferrer" className="px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 hover:underline inline-block w-fit">
+                            Join Meeting
+                          </a>
+                        ) : (
+                          <span className="text-xs text-slate-500">Not Scheduled</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
@@ -260,14 +374,6 @@ export default function DashboardView({ leads, isAdmin, onExport, onNewDeal, onR
               </thead>
               <tbody>
                 {leads.slice(0, 10).map((lead) => {
-                  const statusColors: { [key: string]: string } = {
-                    'Lead': 'bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300',
-                    'Contacted': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-                    'Qualified': 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300',
-                    'Closed Won': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-                    'Closed Lost': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300'
-                  };
-                  
                   return (
                     <tr key={lead.id} className="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
                       <td className="px-2 py-3 text-sm font-medium text-slate-900 dark:text-white">{lead.name}</td>

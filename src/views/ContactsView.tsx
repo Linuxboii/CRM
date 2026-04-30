@@ -63,7 +63,25 @@ export default function ContactsView({ leads, onEditLead, onDeleteLead, onRefres
                   <td className="p-4 text-sm font-medium text-slate-900 dark:text-white">{lead.pricing}</td>
                   <td className="p-4 text-sm text-slate-500">{lead.location || '-'}</td>
                   <td className="p-4 text-sm text-slate-500">
-                     {lead.meetStatus === 'Scheduled' ? lead.meetingDate : lead.meetStatus}
+                    {lead.meetingLink ? (
+                      <div className="flex flex-col items-start gap-1">
+                        <a
+                          href={lead.meetingLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-sm">videocam</span>
+                          Join Meeting
+                        </a>
+                        {lead.meetingDate && (
+                          <span className="text-xs text-slate-500">{lead.meetingDate}</span>
+                        )}
+                      </div>
+                    ) : (
+                      lead.meetStatus || 'Not Scheduled'
+                    )}
                   </td>
                   <td className="p-4 text-right">
                     <button 
