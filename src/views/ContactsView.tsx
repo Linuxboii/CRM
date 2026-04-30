@@ -5,13 +5,15 @@ interface ContactsViewProps {
   leads: Lead[];
   onEditLead: (lead: Lead) => void;
   onDeleteLead?: (id: string) => void;
+  onRefresh: () => void;
 }
 
-export default function ContactsView({ leads, onEditLead, onDeleteLead }: ContactsViewProps) {
+export default function ContactsView({ leads, onEditLead, onDeleteLead, onRefresh }: ContactsViewProps) {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
 
   if (selectedLead) {
-    return <ContactDetail lead={selectedLead} onBack={() => setSelectedLead(null)} onEdit={() => onEditLead(selectedLead)} />;
+    const currentLead = leads.find(lead => lead.id === selectedLead.id) || selectedLead;
+    return <ContactDetail lead={currentLead} onBack={() => setSelectedLead(null)} onEdit={() => onEditLead(currentLead)} onRefresh={onRefresh} />;
   }
 
   return (
@@ -21,6 +23,9 @@ export default function ContactsView({ leads, onEditLead, onDeleteLead }: Contac
           <h2 className="font-headline-md text-headline-md text-slate-900 dark:text-white">Contacts & Leads</h2>
           <p className="font-body-md text-body-md text-slate-500">Manage your entire roster of contacts.</p>
         </div>
+        <button onClick={onRefresh} className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-2">
+          <span className="material-symbols-outlined text-sm">refresh</span> Refresh
+        </button>
       </div>
 
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 sc-shadow overflow-hidden">
@@ -86,14 +91,19 @@ export default function ContactsView({ leads, onEditLead, onDeleteLead }: Contac
   );
 }
 
-function ContactDetail({ lead, onBack, onEdit }: { lead: Lead, onBack: () => void, onEdit: () => void }) {
+function ContactDetail({ lead, onBack, onEdit, onRefresh }: { lead: Lead, onBack: () => void, onEdit: () => void, onRefresh: () => void }) {
   return (
     <div className="p-8 max-w-[1200px] mx-auto">
       {/* Breadcrumbs */}
-      <div className="flex items-center gap-2 text-sm text-slate-500 mb-6">
-        <button onClick={onBack} className="hover:text-slate-900 dark:hover:text-white transition-colors">Contacts</button>
-        <span className="material-symbols-outlined text-[16px]">chevron_right</span>
-        <span className="text-slate-900 dark:text-white font-medium">{lead.name}</span>
+      <div className="flex items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-2 text-sm text-slate-500">
+          <button onClick={onBack} className="hover:text-slate-900 dark:hover:text-white transition-colors">Contacts</button>
+          <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+          <span className="text-slate-900 dark:text-white font-medium">{lead.name}</span>
+        </div>
+        <button onClick={onRefresh} className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-2">
+          <span className="material-symbols-outlined text-sm">refresh</span> Refresh
+        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -110,12 +120,16 @@ function ContactDetail({ lead, onBack, onEdit }: { lead: Lead, onBack: () => voi
             <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-1">{lead.name}</h2>
             <p className="text-sm text-slate-500 mb-4">{lead.location}</p>
             <div className="flex justify-center gap-2">
-              <button className="p-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-full hover:bg-indigo-50 hover:text-indigo-600 transition-colors">
+              {lead.email && (
+              <a href={`mailto:${lead.email}`} className="p-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-full hover:bg-indigo-50 hover:text-indigo-600 transition-colors">
                 <span className="material-symbols-outlined text-sm">mail</span>
-              </button>
-              <button className="p-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-full hover:bg-indigo-50 hover:text-indigo-600 transition-colors">
+              </a>
+              )}
+              {lead.number && (
+              <a href={`tel:${lead.number}`} className="p-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-full hover:bg-indigo-50 hover:text-indigo-600 transition-colors">
                 <span className="material-symbols-outlined text-sm">call</span>
-              </button>
+              </a>
+              )}
               {lead.meetingLink && (
                  <a href={lead.meetingLink} target="_blank" rel="noreferrer" className="p-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-full hover:bg-indigo-50 hover:text-indigo-600 transition-colors">
                    <span className="material-symbols-outlined text-sm">videocam</span>
@@ -137,6 +151,20 @@ function ContactDetail({ lead, onBack, onEdit }: { lead: Lead, onBack: () => voi
                 <p className="font-medium text-slate-900 dark:text-white">{lead.number}</p>
               </div>
               <div>
+                <p className="text-slate-500 text-xs mb-1">Meeting</p>
+                {lead.meetingLink ? (
+                  <div className="space-y-1">
+                    <a href={lead.meetingLink} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline">
+                      <span className="material-symbols-outlined text-sm">videocam</span>
+                      Join Meeting
+                    </a>
+                    {lead.meetingDate && <p className="text-xs text-slate-500">{lead.meetingDate}</p>}
+                  </div>
+                ) : (
+                  <p className="font-medium text-slate-900 dark:text-white">Not Scheduled</p>
+                )}
+              </div>
+              <div>
                 <p className="text-slate-500 text-xs mb-1">Owner</p>
                 <div className="flex items-center gap-2 mt-1">
                   <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-[10px] font-bold">
@@ -146,16 +174,6 @@ function ContactDetail({ lead, onBack, onEdit }: { lead: Lead, onBack: () => voi
                 </div>
               </div>
             </div>
-          </div>
-
-          <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 p-6 rounded-xl border border-indigo-100 dark:border-indigo-800/30">
-            <div className="flex items-center gap-2 mb-2 text-indigo-700 dark:text-indigo-300">
-              <span className="material-symbols-outlined text-sm">auto_awesome</span>
-              <h3 className="font-bold">Predictive Insight</h3>
-            </div>
-            <p className="text-sm text-indigo-900/80 dark:text-indigo-200/80 leading-relaxed">
-              Based on recent interactions and company profile, this deal has an <strong className="text-indigo-700 dark:text-indigo-300">85% probability</strong> of closing if the proposal is sent this week.
-            </p>
           </div>
         </div>
 
@@ -170,7 +188,7 @@ function ContactDetail({ lead, onBack, onEdit }: { lead: Lead, onBack: () => voi
 
           <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 sc-shadow">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="font-bold text-slate-900 dark:text-white">Related Deal</h3>
+              <h3 className="font-bold text-slate-900 dark:text-white">Deal Summary</h3>
             </div>
             <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-4 flex justify-between items-center hover:border-secondary transition-colors cursor-pointer">
               <div className="flex items-center gap-4">
@@ -178,13 +196,13 @@ function ContactDetail({ lead, onBack, onEdit }: { lead: Lead, onBack: () => voi
                   <span className="material-symbols-outlined">attach_money</span>
                 </div>
                 <div>
-                  <h4 className="font-bold text-slate-900 dark:text-white">{lead.name} Implementation</h4>
+                  <h4 className="font-bold text-slate-900 dark:text-white">{lead.name}</h4>
                   <p className="text-xs text-slate-500">Pipeline: <span className="text-indigo-600 dark:text-indigo-400 font-medium">{lead.status}</span></p>
                 </div>
               </div>
               <div className="text-right">
                 <div className="font-bold text-slate-900 dark:text-white">{lead.pricing}</div>
-                <div className="text-xs text-slate-500">Target close: {lead.meetingDate || 'TBD'}</div>
+                <div className="text-xs text-slate-500">Meeting: {lead.meetingDate || 'Not scheduled'}</div>
               </div>
             </div>
           </div>

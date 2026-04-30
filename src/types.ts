@@ -14,6 +14,7 @@ export interface Lead {
   sourceUserName: string;
   clientRequirements?: string;
   createdAt: string;
+  createdAtIso: string;
   updatedAt: string;
   status: LeadStatus;
 }

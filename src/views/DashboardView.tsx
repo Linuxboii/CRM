@@ -1,27 +1,53 @@
 import { Lead } from '../types';
+import { MONTHLY_GOAL_INR, formatInr, parseCurrencyValue } from '../utils/currency';
 
 interface DashboardViewProps {
   leads: Lead[];
   isAdmin: boolean;
   onExport: () => void;
   onNewDeal: () => void;
+  onRefresh: () => void;
 }
 
-export default function DashboardView({ leads, isAdmin, onExport, onNewDeal }: DashboardViewProps) {
-  const calculatePipelineValue = () => {
-    const total = leads.reduce((acc, lead) => {
-      const val = parseInt(lead.pricing.replace(/\D/g, ''));
-      return acc + (isNaN(val) ? 0 : val);
-    }, 0);
-    const finalTotal = isAdmin ? total : total * 0.2;
-    if (finalTotal >= 1000000) return `$${(finalTotal / 1000000).toFixed(1)}M`;
-    if (finalTotal >= 1000) return `$${(finalTotal / 1000).toFixed(1)}k`;
-    return `$${finalTotal}`;
-  };
+export default function DashboardView({ leads, isAdmin, onExport, onNewDeal, onRefresh }: DashboardViewProps) {
+  const getVisibleValue = (value: number) => isAdmin ? value : value * 0.2;
+  const qualifiedPipelineLeads = leads.filter(lead => lead.status !== 'Lead');
+  const pipelineTotal = qualifiedPipelineLeads.reduce((acc, lead) => acc + parseCurrencyValue(lead.pricing), 0);
+  const visiblePipelineTotal = getVisibleValue(pipelineTotal);
+  const calculatePipelineValue = () => formatInr(visiblePipelineTotal);
 
-  const openDeals = leads.filter(l => l.status !== 'Closed Won' && l.status !== 'Closed Lost').length;
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const currentDay = now.getDate();
+  const currentMonthLeads = qualifiedPipelineLeads.filter(lead => {
+    const createdAt = new Date(lead.createdAtIso || lead.createdAt);
+    return createdAt >= monthStart && createdAt < nextMonthStart;
+  });
+  const currentMonthValue = getVisibleValue(currentMonthLeads.reduce((acc, lead) => acc + parseCurrencyValue(lead.pricing), 0));
+  const projectedMonthValue = currentDay > 0 ? Math.round((currentMonthValue / currentDay) * daysInMonth) : currentMonthValue;
+  const goalProgress = Math.min(100, Math.round((currentMonthValue / MONTHLY_GOAL_INR) * 100));
+  const projectionProgress = Math.min(100, Math.round((projectedMonthValue / MONTHLY_GOAL_INR) * 100));
+  const chartMax = Math.max(MONTHLY_GOAL_INR, projectedMonthValue, currentMonthValue, 1);
+  const actualPointList = Array.from({ length: currentDay }, (_, dayIndex) => {
+    const day = dayIndex + 1;
+    const totalForDay = currentMonthLeads.reduce((acc, lead) => {
+      const createdAt = new Date(lead.createdAtIso || lead.createdAt);
+      return createdAt.getDate() <= day ? acc + getVisibleValue(parseCurrencyValue(lead.pricing)) : acc;
+    }, 0);
+    const x = daysInMonth === 1 ? 0 : ((day - 1) / (daysInMonth - 1)) * 100;
+    const y = 92 - (totalForDay / chartMax) * 76;
+    return { x, y: Math.max(12, y) };
+  });
+  const actualPoints = actualPointList.map(point => `${point.x},${point.y}`).join(' ');
+  const latestActualPoint = actualPointList[actualPointList.length - 1] || { x: 0, y: 92 };
+  const projectedY = 92 - (projectedMonthValue / chartMax) * 76;
+  const goalY = 92 - (MONTHLY_GOAL_INR / chartMax) * 76;
+
+  const openDeals = qualifiedPipelineLeads.filter(l => l.status !== 'Closed Won' && l.status !== 'Closed Lost').length;
   const closedDeals = leads.filter(l => l.status === 'Closed Won' || l.status === 'Closed Lost').length;
-  const conversionRate = leads.length > 0 ? Math.round((closedDeals / leads.length) * 100) : 0;
+  const conversionRate = qualifiedPipelineLeads.length > 0 ? Math.round((closedDeals / qualifiedPipelineLeads.length) * 100) : 0;
 
   // For pipeline bar chart width calculations
   const stageCount = (status: string) => leads.filter(l => l.status === status).length;
@@ -37,6 +63,9 @@ export default function DashboardView({ leads, isAdmin, onExport, onNewDeal }: D
           <p className="font-body-md text-body-md text-slate-500">Welcome back. Here's what's happening with your pipeline today.</p>
         </div>
         <div className="flex gap-3">
+          <button onClick={onRefresh} className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-2">
+            <span className="material-symbols-outlined text-sm">refresh</span> Refresh
+          </button>
           <button onClick={onExport} className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-2">
             <span className="material-symbols-outlined text-sm">download</span> Export Report
           </button>
@@ -91,26 +120,68 @@ export default function DashboardView({ leads, isAdmin, onExport, onNewDeal }: D
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        {/* Revenue Trend (Line Chart Mock) */}
         <div className="lg:col-span-2 bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 sc-shadow">
-          <div className="flex justify-between items-center mb-8">
-            <h4 className="font-headline-sm text-headline-sm text-slate-900 dark:text-white">Revenue Forecast</h4>
-            <div className="flex gap-2">
+          <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-6">
+            <div>
+              <h4 className="font-headline-sm text-headline-sm text-slate-900 dark:text-white">Monthly Projection</h4>
+              <p className="text-xs text-slate-500 mt-1">Tracks backend deals created this month, excluding leads. Resets on the 1st.</p>
+            </div>
+            <div className="flex gap-4 text-right">
+              <div>
+                <p className="text-[10px] font-bold uppercase text-slate-400">Current</p>
+                <p className="text-sm font-bold text-slate-900 dark:text-white">{formatInr(currentMonthValue)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase text-slate-400">Projected</p>
+                <p className="text-sm font-bold text-indigo-600 dark:text-indigo-400">{formatInr(projectedMonthValue)}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase text-slate-400">Goal</p>
+                <p className="text-sm font-bold text-slate-900 dark:text-white">{formatInr(MONTHLY_GOAL_INR)}</p>
+              </div>
+            </div>
+          </div>
+          <div className="relative h-64 w-full bg-slate-50 dark:bg-slate-900/50 rounded-lg overflow-hidden">
+            <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
+              <line x1="0" y1={goalY} x2="100" y2={goalY} stroke="#94a3b8" strokeDasharray="4" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+              {actualPoints && (
+                <polyline points={actualPoints} fill="none" stroke="#4648d4" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+              )}
+              <line x1={latestActualPoint.x} y1={latestActualPoint.y} x2="100" y2={Math.max(12, projectedY)} stroke="#10b981" strokeDasharray="3" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+            </svg>
+            <div className="absolute top-3 left-4 right-4 flex justify-between text-[10px] text-slate-400 font-bold uppercase">
               <span className="flex items-center gap-1.5 text-xs text-slate-500">
                 <span className="w-2 h-2 rounded-full bg-secondary"></span> Actual
               </span>
               <span className="flex items-center gap-1.5 text-xs text-slate-500">
-                <span className="w-2 h-2 rounded-full bg-slate-200 dark:bg-slate-600"></span> Goal
+                <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Projection
+              </span>
+              <span className="flex items-center gap-1.5 text-xs text-slate-500">
+                <span className="w-2 h-2 rounded-full bg-slate-400"></span> Goal
               </span>
             </div>
-          </div>
-          <div className="relative h-64 w-full bg-slate-50 dark:bg-slate-900/50 rounded-lg flex items-end px-4 py-2 overflow-hidden">
-            <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
-              <path d="M0 80 Q 25 70, 40 50 T 70 30 T 100 10" fill="none" stroke="#4648d4" strokeWidth="2" vectorEffect="non-scaling-stroke"></path>
-              <path d="M0 90 Q 20 85, 40 75 T 60 65 T 80 50 T 100 40" fill="none" stroke="#64748b" strokeDasharray="4" strokeWidth="2" vectorEffect="non-scaling-stroke"></path>
-            </svg>
             <div className="absolute bottom-2 left-0 w-full flex justify-between px-6 text-[10px] text-slate-400 font-medium">
-              <span>JAN</span><span>FEB</span><span>MAR</span><span>APR</span><span>MAY</span><span>JUN</span>
+              <span>1</span><span>{currentDay}</span><span>{daysInMonth}</span>
+            </div>
+          </div>
+          <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <div className="flex justify-between text-xs text-slate-500 mb-1.5">
+                <span>Current progress</span>
+                <span>{goalProgress}%</span>
+              </div>
+              <div className="h-2.5 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                <div className="h-full bg-secondary transition-all duration-500" style={{ width: `${goalProgress}%` }}></div>
+              </div>
+            </div>
+            <div>
+              <div className="flex justify-between text-xs text-slate-500 mb-1.5">
+                <span>Projected progress</span>
+                <span>{projectionProgress}%</span>
+              </div>
+              <div className="h-2.5 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${projectionProgress}%` }}></div>
+              </div>
             </div>
           </div>
         </div>

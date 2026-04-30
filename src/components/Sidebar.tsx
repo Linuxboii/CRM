@@ -1,10 +1,13 @@
+import { MONTHLY_GOAL_INR, formatInr } from '../utils/currency';
+
 interface SidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   isAdmin: boolean;
+  monthlyProgressPercent: number;
 }
 
-export default function Sidebar({ activeTab, onTabChange, isAdmin }: SidebarProps) {
+export default function Sidebar({ activeTab, onTabChange, isAdmin, monthlyProgressPercent }: SidebarProps) {
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
     { id: 'deals', label: 'Deals', icon: 'view_kanban' },
@@ -43,26 +46,13 @@ export default function Sidebar({ activeTab, onTabChange, isAdmin }: SidebarProp
         <div className="bg-slate-800 rounded-xl p-4 mb-4">
           <p className="text-xs text-slate-400 mb-2">Monthly Target</p>
           <div className="flex justify-between items-end mb-2">
-            <span className="text-lg font-bold text-white">78%</span>
-            <span className="text-xs text-slate-400">$100k</span>
+            <span className="text-lg font-bold text-white">{monthlyProgressPercent}%</span>
+            <span className="text-xs text-slate-400">{formatInr(MONTHLY_GOAL_INR)}</span>
           </div>
           <div className="h-2 w-full bg-slate-700 rounded-full overflow-hidden">
-            <div className="h-full bg-emerald-500 w-[78%]"></div>
+            <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${monthlyProgressPercent}%` }}></div>
           </div>
         </div>
-        <nav className="space-y-1">
-          <button 
-             onClick={() => onTabChange('settings')}
-             className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 hover:text-white transition-colors ${activeTab === 'settings' ? 'text-white' : ''}`}
-          >
-            <span className="material-symbols-outlined text-[20px]">settings</span>
-            Settings
-          </button>
-          <button className="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 hover:text-white transition-colors">
-            <span className="material-symbols-outlined text-[20px]">help</span>
-            Support
-          </button>
-        </nav>
       </div>
     </aside>
   );

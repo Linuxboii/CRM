@@ -10,6 +10,7 @@ import DealsView from './views/DealsView';
 import ContactsView from './views/ContactsView';
 import CalendarView from './views/CalendarView';
 import TeamView from './views/TeamView';
+import { MONTHLY_GOAL_INR, formatInr, parseCurrencyValue } from './utils/currency';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<SystemUser | null>(null);
@@ -40,6 +41,20 @@ export default function App() {
   }, []);
 
   const isAdmin = currentUser?.role === 'admin';
+  const getVisibleValue = (value: number) => isAdmin ? value : value * 0.2;
+  const getCurrentMonthPipelineValue = () => {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+    return leads
+      .filter(lead => {
+        const createdAt = new Date(lead.createdAtIso || lead.createdAt);
+        return lead.status !== 'Lead' && createdAt >= monthStart && createdAt < nextMonthStart;
+      })
+      .reduce((acc, lead) => acc + getVisibleValue(parseCurrencyValue(lead.pricing)), 0);
+  };
+  const monthlyProgressPercent = Math.min(100, Math.round((getCurrentMonthPipelineValue() / MONTHLY_GOAL_INR) * 100));
 
   const loadData = async () => {
     setIsLoading(true);
@@ -197,7 +212,7 @@ export default function App() {
       'Phone': lead.number,
       'Location': lead.location,
       'Lead Source': lead.sourceUserName,
-      'Pricing': !isAdmin && lead.pricing !== '₹0' ? `₹${(parseInt(lead.pricing.replace(/\D/g, '')) * 0.2).toLocaleString()}` : lead.pricing,
+      'Pricing': !isAdmin && parseCurrencyValue(lead.pricing) > 0 ? formatInr(parseCurrencyValue(lead.pricing) * 0.2) : lead.pricing,
       'Status': lead.status,
       'Meeting Status': lead.meetStatus,
       'Meeting Date': lead.meetingDate ? new Date(lead.meetingDate).toLocaleString() : 'N/A',
@@ -223,16 +238,16 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-slate-50 dark:bg-slate-900 overflow-hidden font-body-md text-slate-900 dark:text-white">
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} isAdmin={isAdmin} />
+      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} isAdmin={isAdmin} monthlyProgressPercent={monthlyProgressPercent} />
       
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <Topbar userName={currentUser.full_name} onLogout={handleLogout} />
+        <Topbar userName={currentUser.full_name} userRole={currentUser.role} onLogout={handleLogout} />
         
         <main className="flex-1 overflow-auto">
-          {activeTab === 'dashboard' && <DashboardView leads={leads} isAdmin={isAdmin} onExport={exportToExcel} onNewDeal={openNewModal} />}
-          {activeTab === 'deals' && <DealsView leads={leads} onUpdateStatus={handleUpdateStatus} />}
-          {activeTab === 'contacts' && <ContactsView leads={leads} onEditLead={openEditModal} onDeleteLead={handleDeleteLead} />}
-          {activeTab === 'calendar' && <CalendarView leads={leads} />}
+          {activeTab === 'dashboard' && <DashboardView leads={leads} isAdmin={isAdmin} onExport={exportToExcel} onNewDeal={openNewModal} onRefresh={loadData} />}
+          {activeTab === 'deals' && <DealsView leads={leads} onUpdateStatus={handleUpdateStatus} onRefresh={loadData} />}
+          {activeTab === 'contacts' && <ContactsView leads={leads} onEditLead={openEditModal} onDeleteLead={handleDeleteLead} onRefresh={loadData} />}
+          {activeTab === 'calendar' && <CalendarView leads={leads} onRefresh={loadData} />}
           {activeTab === 'team' && isAdmin && <TeamView users={users} onRefresh={loadData} />}
         </main>
       </div>

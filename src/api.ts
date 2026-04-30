@@ -1,3 +1,5 @@
+import { formatInr, parseCurrencyValue } from './utils/currency';
+
 const API_URL = "https://crm-api.avlokai.com";
 
 const getHeaders = () => {
@@ -61,23 +63,28 @@ export const fetchLeads = async () => {
     'lost': 'Closed Lost'
   };
   
-  return rawData.map((row: any) => ({
-    id: row.id,
-    name: row.full_name,
-    email: row.email,
-    number: row.phone,
-    location: row.location,
-    pricing: row.pricing_target ? `₹${row.pricing_target}` : '₹0', 
-    status: statusMap[row.status] || 'Lead',
-    sourceUserId: row.assigned_to || '',
-    sourceUserName: row.assigned_to_name || 'Unassigned',
-    meetStatus: row.gmeet_link ? 'Scheduled' : 'Not Scheduled',
-    meetingDate: row.meeting_datetime ? new Date(row.meeting_datetime).toLocaleString() : '',
-    meetingLink: row.gmeet_link || '',
-    clientRequirements: row.client_requirements || '',
-    createdAt: new Date(row.created_at).toLocaleDateString(),
-    updatedAt: row.updated_at ? new Date(row.updated_at).toLocaleDateString() : 'N/A'
-  }));
+  return rawData.map((row: any) => {
+    const meetingLink = row.gmeet_link || row.meeting_link || row.meet_link || '';
+
+    return {
+      id: row.id,
+      name: row.full_name,
+      email: row.email,
+      number: row.phone,
+      location: row.location,
+      pricing: formatInr(parseCurrencyValue(row.pricing_target)),
+      status: statusMap[row.status] || 'Lead',
+      sourceUserId: row.assigned_to || '',
+      sourceUserName: row.assigned_to_name || 'Unassigned',
+      meetStatus: meetingLink ? 'Scheduled' : 'Not Scheduled',
+      meetingDate: row.meeting_datetime ? new Date(row.meeting_datetime).toLocaleString() : '',
+      meetingLink,
+      clientRequirements: row.client_requirements || '',
+      createdAt: new Date(row.created_at).toLocaleDateString(),
+      createdAtIso: row.created_at || '',
+      updatedAt: row.updated_at ? new Date(row.updated_at).toLocaleDateString() : 'N/A'
+    };
+  });
 };
 
 export const createLead = async (data: any) => {
