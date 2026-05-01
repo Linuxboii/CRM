@@ -1,4 +1,5 @@
 import { Lead } from '../types';
+import { SystemUser } from '../api';
 import { MONTHLY_GOAL_INR, formatInr, parseCurrencyValue } from '../utils/currency';
 
 interface DashboardViewProps {
@@ -8,9 +9,11 @@ interface DashboardViewProps {
   onExport: () => void;
   onNewDeal: () => void;
   onRefresh: () => void;
+  users: SystemUser[];
+  currentUser: SystemUser | null;
 }
 
-export default function DashboardView({ leads, isAdmin, topProducer, onExport, onNewDeal, onRefresh }: DashboardViewProps) {
+export default function DashboardView({ leads, isAdmin, topProducer, onExport, onNewDeal, onRefresh, users, currentUser }: DashboardViewProps) {
   const getVisibleValue = (value: number) => isAdmin ? value : value * 0.2;
   const qualifiedPipelineLeads = leads.filter(lead => lead.status !== 'Lead');
   const pipelineTotal = qualifiedPipelineLeads.reduce((acc, lead) => acc + parseCurrencyValue(lead.pricing), 0);
@@ -54,6 +57,22 @@ export default function DashboardView({ leads, isAdmin, topProducer, onExport, o
   const stageCount = (status: string) => leads.filter(l => l.status === status).length;
   const totalLeads = leads.length || 1;
   const getWidth = (status: string) => `${Math.max(5, (stageCount(status) / totalLeads) * 100)}%`;
+  // Build leaderboard: get unique sales rep names, exclude admins
+  const adminNames = new Set(
+    users.filter(u => u.role === 'admin').map(u => u.full_name)
+  );
+  // Also exclude current user if admin (safety net for non-admin view where users list is empty)
+  if (currentUser?.role === 'admin') {
+    adminNames.add(currentUser.full_name);
+  }
+  const leaderboardNames = Array.from(
+    new Set(
+      leads
+        .map(l => l.sourceUserName)
+        .filter(name => name && name !== 'Unassigned' && !adminNames.has(name))
+    )
+  );
+
   const statusColors: { [key: string]: string } = {
     'Lead': 'bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300',
     'Contacted': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
@@ -101,19 +120,54 @@ export default function DashboardView({ leads, isAdmin, topProducer, onExport, o
               </div>
             </div>
             <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-700">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
-                  <span className="material-symbols-outlined text-[18px]">workspace_premium</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                    <span className="material-symbols-outlined text-[18px]">workspace_premium</span>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase text-slate-400">Top Performer</p>
+                    <p className="text-sm font-bold text-slate-900 dark:text-white">{topProducer?.name || 'None'}</p>
+                    <p className="text-xs text-slate-500">{topProducer?.count || 0} active client{topProducer?.count === 1 ? '' : 's'}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase text-slate-400">Top Performer</p>
-                  <p className="text-sm font-bold text-slate-900 dark:text-white">{topProducer?.name || 'None'}</p>
-                  <p className="text-xs text-slate-500">{topProducer?.count || 0} active client{topProducer?.count === 1 ? '' : 's'}</p>
-                </div>
+                <button onClick={onRefresh} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors" title="Refresh">
+                  <span className="material-symbols-outlined text-sm">refresh</span>
+                </button>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Sales Leaderboard */}
+        {leaderboardNames.length > 0 && (
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 sc-shadow">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
+                <span className="material-symbols-outlined">emoji_events</span>
+              </div>
+              <div>
+                <h4 className="font-headline-sm text-headline-sm text-slate-900 dark:text-white">Sales Leaderboard</h4>
+                <p className="text-xs text-slate-500">Active sales reps in the competition</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {leaderboardNames.map((name, index) => (
+                <div key={name} className="flex items-center gap-3 px-4 py-3 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-700/50 transition-all hover:border-indigo-200 dark:hover:border-indigo-800">
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                    index === 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400' :
+                    index === 1 ? 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300' :
+                    index === 2 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400' :
+                    'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400'
+                  }`}>
+                    {index + 1}
+                  </div>
+                  <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">{name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 sc-shadow">
           <h4 className="font-headline-sm text-headline-sm text-slate-900 dark:text-white mb-6">Clients List</h4>
@@ -349,6 +403,36 @@ export default function DashboardView({ leads, isAdmin, topProducer, onExport, o
           </div>
         </div>
       </div>
+
+      {/* Sales Leaderboard */}
+      {leaderboardNames.length > 0 && (
+        <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 sc-shadow mb-8">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
+              <span className="material-symbols-outlined">emoji_events</span>
+            </div>
+            <div>
+              <h4 className="font-headline-sm text-headline-sm text-slate-900 dark:text-white">Sales Leaderboard</h4>
+              <p className="text-xs text-slate-500">Active sales reps in the competition</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {leaderboardNames.map((name, index) => (
+              <div key={name} className="flex items-center gap-3 px-4 py-3 rounded-lg bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-700/50 transition-all hover:border-indigo-200 dark:hover:border-indigo-800">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                  index === 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400' :
+                  index === 1 ? 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300' :
+                  index === 2 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400' :
+                  'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400'
+                }`}>
+                  {index + 1}
+                </div>
+                <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">{name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Recent Deals Section */}
       <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 sc-shadow">

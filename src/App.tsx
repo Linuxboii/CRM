@@ -247,7 +247,7 @@ export default function App() {
         <Topbar userName={currentUser.full_name} userRole={currentUser.role} onLogout={handleLogout} />
         
         <main className="flex-1 overflow-auto">
-          {activeTab === 'dashboard' && <DashboardView leads={leads} isAdmin={isAdmin} topProducer={topProducer} onExport={exportToExcel} onNewDeal={openNewModal} onRefresh={loadData} />}
+          {activeTab === 'dashboard' && <DashboardView leads={leads} isAdmin={isAdmin} topProducer={topProducer} onExport={exportToExcel} onNewDeal={openNewModal} onRefresh={loadData} users={users} currentUser={currentUser} />}
           {activeTab === 'deals' && <DealsView leads={leads} onUpdateStatus={handleUpdateStatus} onRefresh={loadData} />}
           {activeTab === 'contacts' && <ContactsView leads={leads} onEditLead={openEditModal} onDeleteLead={handleDeleteLead} onRefresh={loadData} />}
           {activeTab === 'calendar' && <CalendarView leads={leads} onRefresh={loadData} />}
