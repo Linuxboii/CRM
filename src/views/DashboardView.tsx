@@ -16,7 +16,8 @@ interface DashboardViewProps {
 export default function DashboardView({ leads, isAdmin, topProducer, onExport, onNewDeal, onRefresh, users, currentUser }: DashboardViewProps) {
   const getVisibleValue = (value: number) => isAdmin ? value : value * 0.2;
   const qualifiedPipelineLeads = leads.filter(lead => lead.status !== 'Lead');
-  const pipelineTotal = qualifiedPipelineLeads.reduce((acc, lead) => acc + parseCurrencyValue(lead.pricing), 0);
+  const valuationLeads = leads.filter(lead => lead.status === 'Closed Won' || lead.status === 'Qualified');
+  const pipelineTotal = valuationLeads.reduce((acc, lead) => acc + parseCurrencyValue(lead.pricing), 0);
   const visiblePipelineTotal = getVisibleValue(pipelineTotal);
   const calculatePipelineValue = () => formatInr(visiblePipelineTotal);
 
