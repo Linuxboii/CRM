@@ -90,9 +90,14 @@ export default function DashboardView({ leads, isAdmin, topProducer, onExport, o
             <h2 className="font-headline-md text-headline-md text-slate-900 dark:text-white">Sales Dashboard</h2>
             <p className="font-body-md text-body-md text-slate-500">Your clients, monthly goal, and pipeline cut.</p>
           </div>
-          <button onClick={onRefresh} className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-2">
-            <span className="material-symbols-outlined text-sm">refresh</span> Refresh
-          </button>
+          <div className="flex gap-3">
+            <button onClick={onRefresh} className="px-4 py-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center gap-2">
+              <span className="material-symbols-outlined text-sm">refresh</span> Refresh
+            </button>
+            <button onClick={onNewDeal} className="px-4 py-2 bg-secondary text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity flex items-center gap-2">
+              <span className="material-symbols-outlined text-sm">add</span> New Lead
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
